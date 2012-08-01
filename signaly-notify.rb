@@ -2,6 +2,7 @@ require 'rubygems'
 require 'mechanize' # interaction with websites
 require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction
+require 'libnotify' # visual notification
 require 'optparse'
 
 login = ''
@@ -96,7 +97,8 @@ end
 def send_notification(status)
   ms = status[:pm].to_s
   ns = status[:notifications].to_s
-  `notify-send "pm: #{ms} notifications: #{ns} / signaly.cz"`
+  text = "pm: #{ms} notifications: #{ns}"
+  Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => 6)
 end
 
 # process options
