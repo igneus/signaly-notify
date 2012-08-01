@@ -72,7 +72,7 @@ def output(new_status, old_status=nil)
 
   ms = new_status[:pm].to_s
   if (old_status == nil && new_status[:pm] > 0) ||
-      (old_status != nil && new_status[:pm] > old_status[:pm]) then
+      (old_status != nil && new_status[:pm] != old_status[:pm]) then
     ms = ms.colorize(:red)
     notify = true
   end
@@ -80,21 +80,23 @@ def output(new_status, old_status=nil)
 
   ns = new_status[:notifications].to_s
   if (old_status == nil && new_status[:notifications] > 0) ||
-      (old_status != nil && new_status[:notifications] > old_status[:notifications])
+      (old_status != nil && new_status[:notifications] != old_status[:notifications])
     ns = ms.colorize(:red) 
     notify = true
   end
   puts " notifications: "+ns
-
-  if notify then
-    `notify-send "pm: #{ms} notifications: #{ns} / signaly.cz"`
-  end
 end
 
 # doesn't work....
 def set_console_title(status)
   t = "signaly-notify: #{status[:pm]}/#{status[:notifications]}"
   `echo -ne "\\033]0;#{t}\\007"`
+end
+
+def send_notification(status)
+  ms = status[:pm].to_s
+  ns = status[:notifications].to_s
+  `notify-send "pm: #{ms} notifications: #{ns} / signaly.cz"`
 end
 
 # process options
@@ -141,8 +143,15 @@ old_status = status = nil
 
 loop do
   status = Signaly.user_status agent
+
   output status, old_status
   set_console_title status
+  if old_status == nil ||
+      (status[:pm] != old_status[:pm] || 
+       status[:notifications] != old_status[:notifications]) then
+    send_notification status
+  end
+
   old_status = status
 
   sleep sleep_seconds
