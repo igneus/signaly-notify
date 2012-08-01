@@ -9,6 +9,7 @@ login = ''
 password = ''
 
 sleep_seconds = 60
+notification_showtime = 10
 
 # finds the first integer in the string and returns it
 # or returns 0
@@ -82,7 +83,7 @@ def output(new_status, old_status=nil)
   ns = new_status[:notifications].to_s
   if (old_status == nil && new_status[:notifications] > 0) ||
       (old_status != nil && new_status[:notifications] != old_status[:notifications])
-    ns = ms.colorize(:red) 
+    ns = ns.colorize(:red) 
     notify = true
   end
   puts " notifications: "+ns
@@ -94,11 +95,12 @@ def set_console_title(status)
   `echo -ne "\\033]0;#{t}\\007"`
 end
 
-def send_notification(status)
+def send_notification(status, showtime)
   ms = status[:pm].to_s
   ns = status[:notifications].to_s
-  text = "pm: #{ms} notifications: #{ns}"
-  Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => 6)
+  text = "pm: #{ms}\nnotifications: #{ns}"
+
+  Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => showtime)
 end
 
 # process options
@@ -151,7 +153,7 @@ loop do
   if old_status == nil ||
       (status[:pm] != old_status[:pm] || 
        status[:notifications] != old_status[:notifications]) then
-    send_notification status
+    send_notification status, notification_showtime
   end
 
   old_status = status
