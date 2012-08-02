@@ -48,7 +48,7 @@ module Signaly
   end
 
   def Signaly.user_status(agent)
-    status = {:pm => 0, :notifications => 0}
+    status = {:pm => 0, :notifications => 0, :invitations => 0}
     page = agent.get('https://www.signaly.cz/')
     
     menu = page.search(".//div[@class='menu-user']")
@@ -59,34 +59,43 @@ module Signaly
     notif = menu.search(".//a[@href='/ohlasky']")
     status[:notifications] = find_num(notif.text)
 
+    inv = menu.search(".//a[@href='/vyzvy']")
+    if inv then
+      status[:invitations] = find_num(inv.text)
+    end
+
     return status
   end
+end
+
+def changed?(new_status, old_status, item)
+  (old_status == nil && new_status[item] > 0) ||
+    (old_status != nil && new_status[item] != old_status[item])
 end
 
 def output(new_status, old_status=nil)
   t = Time.now
 
-  notify = false
-  notify = true if old_status == nil 
-
   puts # start on a new line
   print "#{t.hour}:#{t.min}:#{t.sec} "
 
   ms = new_status[:pm].to_s
-  if (old_status == nil && new_status[:pm] > 0) ||
-      (old_status != nil && new_status[:pm] != old_status[:pm]) then
+  if changed?(new_status, old_status, :pm) then
     ms = ms.colorize(:red)
-    notify = true
   end
   print "messages: "+ms
 
   ns = new_status[:notifications].to_s
-  if (old_status == nil && new_status[:notifications] > 0) ||
-      (old_status != nil && new_status[:notifications] != old_status[:notifications])
+  if changed?(new_status, old_status, :notifications) then
     ns = ns.colorize(:red) 
-    notify = true
   end
-  puts " notifications: "+ns
+  print "  notifications: "+ns
+
+  is = new_status[:invitations].to_s
+  if changed?(new_status, old_status, :invitations) then
+    is = is.colorize(:red)
+  end
+  puts "  invitations: "+is
 end
 
 # doesn't work....
@@ -98,7 +107,8 @@ end
 def send_notification(status, showtime)
   ms = status[:pm].to_s
   ns = status[:notifications].to_s
-  text = "pm: #{ms}\nnotifications: #{ns}"
+  is = status[:invitations].to_s
+  text = "pm: #{ms}\nnotifications: #{ns}\ninvitations: #{is}"
 
   Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => showtime)
 end
