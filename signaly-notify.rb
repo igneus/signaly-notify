@@ -77,7 +77,7 @@ def output(new_status, old_status=nil)
   t = Time.now
 
   puts # start on a new line
-  print "#{t.hour}:#{t.min}:#{t.sec} ".ljust(8)
+  print "#{t.hour}:#{t.min}:#{t.sec}".ljust(9)
 
   ms = new_status[:pm].to_s
   if changed?(new_status, old_status, :pm) then
