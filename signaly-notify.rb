@@ -115,7 +115,7 @@ end
 
 # process options
 optparse = OptionParser.new do |opts|
-  opts.on "-l", "--login NAME", "user name used to log in" do |n|
+  opts.on "-u", "--user NAME", "user name used to log in" do |n|
     login = n
   end
 
