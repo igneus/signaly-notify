@@ -122,6 +122,12 @@ optparse = OptionParser.new do |opts|
   opts.on "-p", "--password WORD", "user's password" do |p|
     password = p
   end
+  
+  opts.separator "If you don't provide any of the options above, "\
+  "the program will ask you to type the name and/or password on its start. "\
+  "(And especially "\
+  "for the password it's probably a bit safer to type it this way than "\
+  "to type it on the commandline.)\n\n"
 
   opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{sleep_seconds})" do |s|
     sleep_seconds = s
