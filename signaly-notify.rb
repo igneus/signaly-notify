@@ -127,8 +127,9 @@ optparse = OptionParser.new do |opts|
     sleep_seconds = s
   end
 
-  opts.on "-h" "--help", "print this help" do
+  opts.on "-h", "--help", "print this help" do
     puts opts
+    exit 0
   end
 end
 optparse.parse!
