@@ -8,7 +8,12 @@ require 'optparse'
 login = ''
 password = ''
 
+# how many seconds between two checks of the site
 sleep_seconds = 60
+# if there is some pending content and I don't look at it,
+# remind me after X seconds
+remind_after = 60*5
+# for how long time the notification shows up
 notification_showtime = 10
 
 # finds the first integer in the string and returns it
@@ -131,6 +136,10 @@ optparse = OptionParser.new do |opts|
 
   opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{sleep_seconds})" do |s|
     sleep_seconds = s
+  end
+
+  opts.on "-r", "--remind SECS", Integer, "how many seconds before a reminder (default is #{remind_after})" do |s|
+    remind_after = s
   end
 
   opts.on "-h", "--help", "print this help" do
