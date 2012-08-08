@@ -79,56 +79,74 @@ module Signaly
 end
 
 class SignalyStatusOutputter
-  def initialize()
+  def initialize(config)
+    @config = config
   end
 
   def output(new_status, old_status)
   end
 end
 
+class ConsoleOutputter < SignalyStatusOutputter
+  def output(new_status, old_status)
+    print_line new_status, old_status
+    set_console_title new_status
+  end
+
+  private
+
+  def print_line(new_status, old_status)
+    t = Time.now
+
+    puts # start on a new line
+    print t.strftime("%H:%M:%S")
+
+    ms = new_status[:pm].to_s
+    if changed?(new_status, old_status, :pm) then
+      ms = ms.colorize(:red)
+    end
+    print "  messages: "+ms
+
+    ns = new_status[:notifications].to_s
+    if changed?(new_status, old_status, :notifications) then
+      ns = ns.colorize(:red) 
+    end
+    print "  notifications: "+ns
+
+    is = new_status[:invitations].to_s
+    if changed?(new_status, old_status, :invitations) then
+      is = is.colorize(:red)
+    end
+    puts "  invitations: "+is
+  end
+
+  # doesn't work....
+  def set_console_title(status)
+    t = "signaly-notify: #{status[:pm]}/#{status[:notifications]}"
+    `echo -ne "\\033]0;#{t}\\007"`
+  end
+end
+
+class LibNotifyOutputter < SignalyStatusOutputter
+  def output(new_status, old_status)
+    send_notification new_status
+  end
+
+  private
+
+  def send_notification(status)
+    ms = status[:pm].to_s
+    ns = status[:notifications].to_s
+    is = status[:invitations].to_s
+    text = "pm: #{ms}\nnotifications: #{ns}\ninvitations: #{is}"
+
+    Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => @config.notification_showtime)
+  end
+end
+
 def changed?(new_status, old_status, item)
   (old_status == nil && new_status[item] > 0) ||
     (old_status != nil && new_status[item] != old_status[item])
-end
-
-def output(new_status, old_status=nil)
-  t = Time.now
-
-  puts # start on a new line
-  print t.strftime("%H:%M:%S")
-
-  ms = new_status[:pm].to_s
-  if changed?(new_status, old_status, :pm) then
-    ms = ms.colorize(:red)
-  end
-  print "  messages: "+ms
-
-  ns = new_status[:notifications].to_s
-  if changed?(new_status, old_status, :notifications) then
-    ns = ns.colorize(:red) 
-  end
-  print "  notifications: "+ns
-
-  is = new_status[:invitations].to_s
-  if changed?(new_status, old_status, :invitations) then
-    is = is.colorize(:red)
-  end
-  puts "  invitations: "+is
-end
-
-# doesn't work....
-def set_console_title(status)
-  t = "signaly-notify: #{status[:pm]}/#{status[:notifications]}"
-  `echo -ne "\\033]0;#{t}\\007"`
-end
-
-def send_notification(status, showtime)
-  ms = status[:pm].to_s
-  ns = status[:notifications].to_s
-  is = status[:invitations].to_s
-  text = "pm: #{ms}\nnotifications: #{ns}\ninvitations: #{is}"
-
-  Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => showtime)
 end
 
 # process options
@@ -183,19 +201,33 @@ agent = Mechanize.new
 page = Signaly.login agent, login, password
 
 old_status = status = nil
+last_reminder = 0
+
+co = ConsoleOutputter.new config
+lno = LibNotifyOutputter.new config
 
 loop do
+  old_status = status
   status = Signaly.user_status agent
 
-  output status, old_status
-  set_console_title status
+  # print each update to the console:
+  co.output status, old_status
+
+  # send a notification only if there is something interesting:
+
   if old_status == nil ||
       (status[:pm] != old_status[:pm] || 
        status[:notifications] != old_status[:notifications]) then
-    send_notification status, config.notification_showtime
-  end
+    # something new
+    lno.output status, old_status
+    last_reminder = Time.now.to_i
 
-  old_status = status
+  elsif config.remind_after != 0 &&
+      Time.now.to_i >= last_reminder + config.remind_after then
+    # nothing new, but pending content should be reminded
+    lno.output status, old_status
+    last_reminder = Time.now.to_i
+  end
 
   sleep config.sleep_seconds
 end
