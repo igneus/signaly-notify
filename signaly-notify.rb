@@ -8,13 +8,18 @@ require 'optparse'
 login = ''
 password = ''
 
+SNConfig = Struct.new :sleep_seconds, :remind_after, :notification_showtime
+config = SNConfig.new
+
+# set config defaults:
 # how many seconds between two checks of the site
-sleep_seconds = 60
+config.sleep_seconds = 60
 # if there is some pending content and I don't look at it,
 # remind me after X seconds
-remind_after = 60*5
+config.remind_after = 60*5
 # for how long time the notification shows up
-notification_showtime = 10
+config.notification_showtime = 10
+
 
 # finds the first integer in the string and returns it
 # or returns 0
@@ -70,6 +75,14 @@ module Signaly
     end
 
     return status
+  end
+end
+
+class SignalyStatusOutputter
+  def initialize()
+  end
+
+  def output(new_status, old_status)
   end
 end
 
@@ -134,12 +147,12 @@ optparse = OptionParser.new do |opts|
   "for the password it's probably a bit safer to type it this way than "\
   "to type it on the commandline.)\n\n"
 
-  opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{sleep_seconds})" do |s|
-    sleep_seconds = s
+  opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{config.sleep_seconds})" do |s|
+    config.sleep_seconds = s
   end
 
-  opts.on "-r", "--remind SECS", Integer, "how many seconds before a reminder (default is #{remind_after})" do |s|
-    remind_after = s
+  opts.on "-r", "--remind SECS", Integer, "how many seconds before a reminder (default is #{config.remind_after})" do |s|
+    config.remind_after = s
   end
 
   opts.on "-h", "--help", "print this help" do
@@ -179,10 +192,10 @@ loop do
   if old_status == nil ||
       (status[:pm] != old_status[:pm] || 
        status[:notifications] != old_status[:notifications]) then
-    send_notification status, notification_showtime
+    send_notification status, config.notification_showtime
   end
 
   old_status = status
 
-  sleep sleep_seconds
+  sleep config.sleep_seconds
 end
