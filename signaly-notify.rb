@@ -144,9 +144,16 @@ class LibNotifyOutputter < SignalyStatusOutputter
   end
 end
 
+# utility function to handle the statuses:
+
 def changed?(new_status, old_status, item)
   (old_status == nil && new_status[item] > 0) ||
     (old_status != nil && new_status[item] != old_status[item])
+end
+
+def is_there_anything?(status)
+  status.each_value {|v| return true if v > 0 }
+  return false
 end
 
 # process options
@@ -223,7 +230,8 @@ loop do
     last_reminder = Time.now.to_i
 
   elsif config.remind_after != 0 &&
-      Time.now.to_i >= last_reminder + config.remind_after then
+      Time.now.to_i >= last_reminder + config.remind_after &&
+      is_there_anything?(status) then
     # nothing new, but pending content should be reminded
     lno.output status, old_status
     last_reminder = Time.now.to_i
