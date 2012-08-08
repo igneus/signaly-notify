@@ -169,7 +169,7 @@ optparse = OptionParser.new do |opts|
     config.sleep_seconds = s
   end
 
-  opts.on "-r", "--remind SECS", Integer, "how many seconds before a reminder (default is #{config.remind_after})" do |s|
+  opts.on "-r", "--remind SECS", Integer, "if I don't bother about the contents I recieved a notification about, remind me after X seconds (default is #{config.remind_after}; set to 0 to disable)" do |s|
     config.remind_after = s
   end
 
