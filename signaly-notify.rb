@@ -215,7 +215,16 @@ lno = LibNotifyOutputter.new config
 
 loop do
   old_status = status
-  status = Signaly.user_status agent
+
+  begin
+    status = Signaly.user_status agent
+  rescue Exception => e
+    Libnotify.show(:body => e.message, 
+                   :summary => "signaly.cz: ERROR", 
+                   :timeout => 20)
+    sleep 21
+    raise
+  end
 
   # print each update to the console:
   co.output status, old_status
