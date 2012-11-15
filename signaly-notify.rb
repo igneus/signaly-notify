@@ -44,7 +44,7 @@ class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
   end
 
   def is_there_anything?
-    self.each_value {|v| return true if v > 0 }
+    self.each_pair {|k,v| return true if v > 0 }
     return false
   end
 
