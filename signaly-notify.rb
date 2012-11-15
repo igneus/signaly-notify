@@ -8,7 +8,10 @@ require 'optparse'
 login = ''
 password = ''
 
-SNConfig = Struct.new :sleep_seconds, :remind_after, :notification_showtime
+SNConfig = Struct.new(:sleep_seconds, 
+                      :remind_after, 
+                      :notification_showtime,
+                      :debug_output)
 config = SNConfig.new
 
 # set config defaults:
@@ -19,6 +22,7 @@ config.sleep_seconds = 60
 config.remind_after = 60*5
 # for how long time the notification shows up
 config.notification_showtime = 10
+config.debug_output = false
 
 
 # finds the first integer in the string and returns it
@@ -33,19 +37,32 @@ def find_num(str)
   return m[0].to_i
 end
 
-module Signaly
+class SignalyChecker
   # interaction with signaly.cz
+
+  def initialize(username, password, dbg_print=false)
+    @username = username
+    @password = password
+
+    @agent = Mechanize.new
+
+    @dbg_print_pages = dbg_print # print raw html of all request results?
+
+    login
+  end
 
   # takes user name and password; returns a page (logged-in) or throws
   # exception
-  def Signaly.login(agent, login, password)
-    page = agent.get('https://www.signaly.cz/')
+  def login
+    page = @agent.get('https://www.signaly.cz/')
+    debug_page_print "front page", page
 
     login_form = page.form_with(:action => '/?do=loginForm-submit')
-    login_form['name'] = login
-    login_form['password'] = password
+    login_form['name'] = @username
+    login_form['password'] = @password
 
-    page = agent.submit(login_form)
+    page = @agent.submit(login_form)
+    debug_page_print "first logged in", page
 
     errors = page.search(".//div[@class='message-error']")
     if errors.size > 0 then
@@ -57,9 +74,10 @@ module Signaly
     return page
   end
 
-  def Signaly.user_status(agent)
+  def user_status
     status = {:pm => 0, :notifications => 0, :invitations => 0}
-    page = agent.get('https://www.signaly.cz/')
+    page = @agent.get('https://www.signaly.cz/')
+    debug_page_print "user main page", page
     
     menu = page.search(".//div[@class='menu-user']")
 
@@ -75,6 +93,20 @@ module Signaly
     end
 
     return status
+  end
+
+  private
+
+  def debug_page_print(title, page)
+    return if ! @dbg_print_pages
+
+    STDERR.puts 
+    STDERR.puts(("# "+title).colorize(:yellow))
+    STDERR.puts
+    STDERR.puts page.search(".//div[@class='navbar navbar-fixed-top section-header']")
+    STDERR.puts
+    STDERR.puts("-" * 60)
+    STDERR.puts
   end
 end
 
@@ -180,6 +212,10 @@ optparse = OptionParser.new do |opts|
     config.remind_after = s
   end
 
+  opts.on "-d", "--debug", "print debugging information to STDERR" do
+    config.debug_output = true
+  end
+
   opts.on "-h", "--help", "print this help" do
     puts opts
     exit 0
@@ -202,10 +238,7 @@ if password == '' then
   password = cliio.ask("password: ") {|q| q.echo = '*' }
 end
 
-# start interaction with the website
-agent = Mechanize.new
-
-page = Signaly.login agent, login, password
+checker = SignalyChecker.new login, password, config.debug_output
 
 old_status = status = nil
 last_reminder = 0
@@ -217,7 +250,7 @@ loop do
   old_status = status
 
   begin
-    status = Signaly.user_status agent
+    status = checker.user_status
   rescue Exception => e
     Libnotify.show(:body => e.message, 
                    :summary => "signaly.cz: ERROR", 
