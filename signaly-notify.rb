@@ -98,7 +98,7 @@ class SignalyChecker
     page = @agent.get('https://www.signaly.cz/')
     debug_page_print "user main page", page
     
-    menu = page.search(".//div[@class='menu-user']")
+    menu = page.search(".//div[@class='section-usermenu pull-left']")
 
     pm = menu.search(".//a[@href='/vzkazy']")
     status[:pm] = find_num(pm.text)
