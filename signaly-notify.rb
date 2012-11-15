@@ -37,6 +37,25 @@ def find_num(str)
   return m[0].to_i
 end
 
+class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
+
+  def initialize(pm=0, notifications=0, invitations=0)
+    super(pm, notifications, invitations)
+  end
+
+  def is_there_anything?
+    self.each_value {|v| return true if v > 0 }
+    return false
+  end
+
+  # utility function to handle the statuses:
+
+  def changed?(old_status, item)
+    (old_status == nil && self[item] > 0) ||
+      (old_status != nil && self[item] != old_status[item])
+  end
+end
+
 class SignalyChecker
   # interaction with signaly.cz
 
@@ -75,7 +94,7 @@ class SignalyChecker
   end
 
   def user_status
-    status = {:pm => 0, :notifications => 0, :invitations => 0}
+    status = SignalyStatus.new
     page = @agent.get('https://www.signaly.cz/')
     debug_page_print "user main page", page
     
@@ -134,19 +153,19 @@ class ConsoleOutputter < SignalyStatusOutputter
     print t.strftime("%H:%M:%S")
 
     ms = new_status[:pm].to_s
-    if changed?(new_status, old_status, :pm) then
+    if new_status.changed?(old_status, :pm) then
       ms = ms.colorize(:red)
     end
     print "  messages: "+ms
 
     ns = new_status[:notifications].to_s
-    if changed?(new_status, old_status, :notifications) then
+    if new_status.changed?(old_status, :notifications) then
       ns = ns.colorize(:red) 
     end
     print "  notifications: "+ns
 
     is = new_status[:invitations].to_s
-    if changed?(new_status, old_status, :invitations) then
+    if new_status.changed?(old_status, :invitations) then
       is = is.colorize(:red)
     end
     puts "  invitations: "+is
@@ -176,17 +195,8 @@ class LibNotifyOutputter < SignalyStatusOutputter
   end
 end
 
-# utility function to handle the statuses:
 
-def changed?(new_status, old_status, item)
-  (old_status == nil && new_status[item] > 0) ||
-    (old_status != nil && new_status[item] != old_status[item])
-end
-
-def is_there_anything?(status)
-  status.each_value {|v| return true if v > 0 }
-  return false
-end
+############################################# main
 
 # process options
 optparse = OptionParser.new do |opts|
@@ -273,7 +283,7 @@ loop do
 
   elsif config.remind_after != 0 &&
       Time.now.to_i >= last_reminder + config.remind_after &&
-      is_there_anything?(status) then
+      status.is_there_anything? then
     # nothing new, but pending content should be reminded
     lno.output status, old_status
     last_reminder = Time.now.to_i
