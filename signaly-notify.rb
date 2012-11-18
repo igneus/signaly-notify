@@ -83,11 +83,16 @@ class SignalyChecker
     page = @agent.submit(login_form)
     debug_page_print "first logged in", page
 
-    errors = page.search(".//div[@class='message-error']")
+    errors = page.search(".//div[@class='alert alert-error']")
     if errors.size > 0 then
       msg = ''
       errors.each {|e| msg += e.text.strip+"\n" }
       raise "Login to signaly.cz failed: "+msg
+    end
+
+    usermenu = page.search(".//div[@class='section-usermenu pull-left']")
+    if usermenu.empty? then
+      raise "User-menu not found. Login failed or signaly.cz UI changed again."
     end
 
     return page
