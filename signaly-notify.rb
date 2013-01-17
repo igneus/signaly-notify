@@ -277,11 +277,7 @@ if config_file then
   config_layers << YAML.load(File.open(config_file))
 end
 
-p config_layers
-
 config = merge_structs(*config_layers)
-
-p config
 
 unless ARGV.empty? 
   puts "Warning: unused commandline arguments: "+ARGV.join(', ')
