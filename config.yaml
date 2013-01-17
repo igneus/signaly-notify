@@ -1,0 +1,31 @@
+# a sample config file for signaly-notify.
+# Place it in ~/.config/signaly-notify/config.yaml
+# or specify it's path in the -c option to load it.
+#
+# All the config entries are optional - feel free to comment any of them
+# out.
+
+### how many seconds to sleep between two checks for news
+
+sleep_seconds: 60
+
+### if I have pending news, remind me each X seconds
+
+remind_after: 300
+
+### how many seconds should the notification stay visible
+
+notification_showtime: 4
+
+### print debugging output?
+
+#debug_output: true
+
+### your (now my) login:
+
+login: dromedar
+
+# no, I won't tell you my password. And you probably shouldn't store it in your
+# config. But you can if you want.
+
+# password: my pass word 3

@@ -4,25 +4,49 @@ require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction
 require 'libnotify' # visual notification
 require 'optparse'
-
-login = ''
-password = ''
+require 'yaml'
 
 SNConfig = Struct.new(:sleep_seconds, 
                       :remind_after, 
                       :notification_showtime,
-                      :debug_output)
+                      :debug_output,
+                      :login,
+                      :password)
+
+config_layers = []
+
 config = SNConfig.new
+defaults = SNConfig.new
+
+config_layers << defaults
+config_layers << config
+
+# merges the config structs so that the last one
+# in the argument list has the highest priority and value nil is considered
+# empty
+def merge_structs(*structs)
+  merged = structs.first.dup
+
+  merged.each_pair do |key, value|
+    k = key.to_s # a sym normally; but we also want to merge a normal Hash received from Yaml
+    structs.each do |s|
+      if s[k] != nil then
+        merged[k] = s[k]
+      end
+    end
+  end
+end
 
 # set config defaults:
 # how many seconds between two checks of the site
-config.sleep_seconds = 60
+defaults.sleep_seconds = 60
 # if there is some pending content and I don't look at it,
 # remind me after X seconds
-config.remind_after = 60*5
+defaults.remind_after = 60*5
 # for how long time the notification shows up
-config.notification_showtime = 10
-config.debug_output = false
+defaults.notification_showtime = 10
+defaults.debug_output = false
+defaults.password = nil
 
 
 # finds the first integer in the string and returns it
@@ -203,14 +227,21 @@ end
 
 ############################################# main
 
+# find default config
+config_file = nil
+default_config_path = "#{ENV['HOME']}/.config/signaly-notify/config.yaml"
+if default_config_path then
+  config_file = default_config_path
+end
+
 # process options
 optparse = OptionParser.new do |opts|
   opts.on "-u", "--user NAME", "user name used to log in" do |n|
-    login = n
+    config.login = n
   end
 
   opts.on "-p", "--password WORD", "user's password" do |p|
-    password = p
+    config.password = p
   end
   
   opts.separator "If you don't provide any of the options above, "\
@@ -235,8 +266,22 @@ optparse = OptionParser.new do |opts|
     puts opts
     exit 0
   end
+
+  opts.on "-c", "--config FILE", "configuration file" do |f|
+    config_file = f
+  end
 end
 optparse.parse!
+
+if config_file then
+  config_layers << YAML.load(File.open(config_file))
+end
+
+p config_layers
+
+config = merge_structs(*config_layers)
+
+p config
 
 unless ARGV.empty? 
   puts "Warning: unused commandline arguments: "+ARGV.join(', ')
@@ -245,15 +290,15 @@ end
 # ask the user for missing essential information
 cliio = HighLine.new
 
-if login == '' then
-  login = cliio.ask("login: ")
+if !config.login then
+  config.login = cliio.ask("login: ")
 end
 
-if password == '' then
-  password = cliio.ask("password: ") {|q| q.echo = '*' }
+if !config.password then
+  config.password = cliio.ask("password: ") {|q| q.echo = '*' }
 end
 
-checker = SignalyChecker.new login, password, config.debug_output
+checker = SignalyChecker.new config.login, config.password, config.debug_output
 
 old_status = status = nil
 last_reminder = 0
