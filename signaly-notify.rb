@@ -321,8 +321,8 @@ loop do
   # send a notification only if there is something interesting:
 
   if old_status == nil ||
-      (status[:pm] != old_status[:pm] || 
-       status[:notifications] != old_status[:notifications]) then
+      (status[:pm] > old_status[:pm] || 
+       status[:notifications] > old_status[:notifications]) then
     # something new
     lno.output status, old_status
     last_reminder = Time.now.to_i
