@@ -94,6 +94,8 @@ class SignalyChecker
     login
   end
 
+  USERMENU_XPATH = ".//div[@class='section-usermenu']"
+
   # takes user name and password; returns a page (logged-in) or throws
   # exception
   def login
@@ -114,7 +116,7 @@ class SignalyChecker
       raise "Login to signaly.cz failed: "+msg
     end
 
-    usermenu = page.search(".//div[@class='section-usermenu pull-left']")
+    usermenu = page.search(USERMENU_XPATH)
     if usermenu.empty? then
       raise "User-menu not found. Login failed or signaly.cz UI changed again."
     end
@@ -127,7 +129,7 @@ class SignalyChecker
     page = @agent.get('https://www.signaly.cz/')
     debug_page_print "user main page", page
     
-    menu = page.search(".//div[@class='section-usermenu pull-left']")
+    menu = page.search(USERMENU_XPATH)
 
     pm = menu.search(".//a[@href='/vzkazy']")
     status[:pm] = find_num(pm.text)
