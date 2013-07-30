@@ -102,7 +102,10 @@ class SignalyChecker
     page = @agent.get('https://www.signaly.cz/')
     debug_page_print "front page", page
 
-    login_form = page.form_with(:action => '/?do=loginForm-submit')
+    login_form = page.form_with(:id => 'frm-loginForm')
+    unless login_form
+      raise "Login form not found on the index page!"
+    end
     login_form['name'] = @username
     login_form['password'] = @password
 
