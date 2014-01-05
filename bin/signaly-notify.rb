@@ -1,3 +1,5 @@
+#!/bin/env ruby
+
 require 'mechanize' # interaction with websites
 require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction

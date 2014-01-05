@@ -17,20 +17,14 @@ using libnotify - when something new happens.
 
 ## Co je potřeba, aby to běželo / Depends on: ##
 
-1. programs
-   * ruby 1.9.*
-2. Ruby gems:
-   * mechanize
-   * colorize
-   * highline
-   * libnotify
+* ruby >= 1.9
+* libnotify
+
+## Instalace / Installation ##
+
+$ gem install signaly-notify
 
 ## Spouštění / Execution ##
 
-$ ruby signaly-notify.rb
+$ signaly-notify.rb
 
-[CZ] Skript spusť za pomoci interpreta Ruby. Volby, které jsou k disposici,
-skript vypíše, spustíš-li ho s přepínačem -h .
-
-[EN] Run the script using the Ruby interpreter. Use commandline-option
--h to see all the available options.
