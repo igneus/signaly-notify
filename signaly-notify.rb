@@ -1,4 +1,3 @@
-require 'rubygems'
 require 'mechanize' # interaction with websites
 require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction
@@ -94,7 +93,7 @@ class SignalyChecker
     login
   end
 
-  USERMENU_XPATH = ".//div[@class='section-usermenu']"
+  USERMENU_XPATH = ".//div[contains(@class, 'section-usermenu')]"
 
   # takes user name and password; returns a page (logged-in) or throws
   # exception
