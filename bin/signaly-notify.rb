@@ -313,12 +313,12 @@ loop do
 
   begin
     status = checker.user_status
-  rescue Exception => e
-    Libnotify.show(:body => e.message, 
+  rescue Exception, SocketError => e
+    Libnotify.show(:body => "#{e.class}: #{e.message}",
                    :summary => "signaly.cz: ERROR", 
                    :timeout => 20)
-    sleep 21
-    raise
+    sleep config.sleep_seconds
+    retry
   end
 
   # print each update to the console:
