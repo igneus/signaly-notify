@@ -21,5 +21,5 @@ Currently it only detects pending private messages and notifications."
   s.add_runtime_dependency 'mechanize'
   s.add_runtime_dependency 'colorize'
   s.add_runtime_dependency 'highline'
-  s.add_runtime_dependency 'libnotify'
+  s.add_optional_dependency 'libnotify'
 end

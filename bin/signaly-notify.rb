@@ -3,7 +3,11 @@
 require 'mechanize' # interaction with websites
 require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction
-require 'libnotify' # visual notification
+begin
+  require 'libnotify' # visual notification
+rescue LoadError
+  # no desktop notifications will be displayed
+end
 require 'optparse'
 require 'yaml'
 
@@ -143,12 +147,27 @@ class SignalyChecker
   # finds the first integer in the string and returns it
   def find_num(str, default=0)
     m = str.match /\d+/
+    return m ? m[0].to_i : default
+  end
+end
 
-    unless m
-      return default
+# dispatches events to observers - subscribed notifiers
+class Notifier
+  def initialize
+    @outputters = {}
+  end
+
+  def add_outputter(outputter, *events)
+    events.each do |event|
+      @outputters[event] ||= []
+      @outputters[event] << outputter
     end
+    self
+  end
 
-    return m[0].to_i
+  def emit(event, *args)
+    @outputters[event].each {|o| o.output *args }
+    self
   end
 end
 
@@ -194,14 +213,8 @@ end
 
 class LibNotifyOutputter < SignalyStatusOutputter
   def output(new_status, old_status)
-    send_notification new_status
-  end
-
-  private
-
-  def send_notification(status)
     text = [:pm, :notifications, :invitations].collect do |what|
-      "#{what}: #{status[what]}"
+      "#{what}: #{new_status[what]}"
     end.join "\n"
 
     Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => @config.notification_showtime)
@@ -221,9 +234,12 @@ class SignalyNotifyApp
       config_file(options.config_file),
       options
     )
-    ask_config(config)
+    ask_config config
 
-    check_loop(config)
+    notifier = Notifier.new
+    prepare_outputters config, notifier
+
+    check_loop config, notifier
   end
 
   private
@@ -323,15 +339,20 @@ class SignalyNotifyApp
     return merged
   end
 
-  def check_loop(config)
+  def prepare_outputters(config, notifier)
+    notifier.add_outputter ConsoleOutputter.new(config), :checked
+
+    if defined? Libnotify
+      notifier.add_outputter LibNotifyOutputter.new(config), :changed, :remind
+    end
+  end
+
+  def check_loop(config, notifier)
     checker = SignalyChecker.new config
     checker.login unless config.skip_login
 
     old_status = status = nil
     last_reminder = 0
-
-    co = ConsoleOutputter.new config
-    lno = LibNotifyOutputter.new config
 
     loop do
       old_status = status
@@ -347,20 +368,20 @@ class SignalyNotifyApp
       end
 
       # print each update to the console:
-      co.output status, old_status
+      notifier.emit :checked, status, old_status
 
       # send a notification only if there is something interesting:
 
       if old_status == nil || status > old_status then
         # something new
-        lno.output status, old_status
+        notifier.emit :changed, status, old_status
         last_reminder = Time.now.to_i
 
       elsif config.remind_after != 0 &&
             Time.now.to_i >= last_reminder + config.remind_after &&
                                              status.is_there_anything? then
         # nothing new, but pending content should be reminded
-        lno.output status, old_status
+        notifier.emit :remind, status, old_status
         last_reminder = Time.now.to_i
       end
 
