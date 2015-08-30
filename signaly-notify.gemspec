@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 Gem::Specification.new do |s|
   s.name        = 'signaly-notify'
-  s.version     = '0.0.3'
-  s.date        = '2014-01-05'
+  s.version     = '0.0.4'
+  s.date        = '2015-08-30'
   s.summary     = "notification script for signaly.cz (Czech christian social network)"
   s.description = "signaly-notify.rb is a simple script 
 logging in with your user data to the social network https://signaly.cz 
@@ -21,6 +21,4 @@ Currently it only detects pending private messages and notifications."
   s.add_runtime_dependency 'mechanize'
   s.add_runtime_dependency 'colorize'
   s.add_runtime_dependency 'highline'
-  s.add_optional_dependency 'libnotify'
-  s.add_optional_dependency 'ruby-growl'
 end
