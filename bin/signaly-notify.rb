@@ -7,20 +7,14 @@ require 'libnotify' # visual notification
 require 'optparse'
 require 'yaml'
 
-SNConfig = Struct.new(:sleep_seconds, 
-                      :remind_after, 
+SNConfig = Struct.new(:sleep_seconds, # between checks
+                      :remind_after, # the first notification
                       :notification_showtime,
                       :debug_output,
                       :login,
-                      :password)
-
-config_layers = []
-
-config = SNConfig.new
-defaults = SNConfig.new
-
-config_layers << defaults
-config_layers << config
+                      :password,
+                      :url, # of the checked page
+                      :skip_login)
 
 # merges the config structs so that the last one
 # in the argument list has the highest priority and value nil is considered
@@ -38,30 +32,7 @@ def merge_structs(*structs)
   end
 end
 
-# set config defaults:
-# how many seconds between two checks of the site
-defaults.sleep_seconds = 60
-# if there is some pending content and I don't look at it,
-# remind me after X seconds
-defaults.remind_after = 60*5
-# for how long time the notification shows up
-defaults.notification_showtime = 10
-defaults.debug_output = false
-defaults.password = nil
-
-
-# finds the first integer in the string and returns it
-# or returns 0
-def find_num(str)
-  m = str.match /\d+/
-
-  unless m
-    return 0
-  end
-
-  return m[0].to_i
-end
-
+# how many PMs, notifications, invitations a user has at a time
 class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
 
   def initialize(pm=0, notifications=0, invitations=0)
@@ -73,26 +44,36 @@ class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
     return false
   end
 
-  # utility function to handle the statuses:
+  # does self have anything new compared with other?
+  def >(other)
+    [:pm, :notifications, :invitations].each do |prop|
+      if send(prop) > other.send(prop) then
+        return true
+      end
+    end
 
-  def changed?(old_status, item)
-    (old_status == nil && self[item] > 0) ||
-      (old_status != nil && self[item] != old_status[item])
+    return false
+  end
+
+  # is there any change between old_status and self in property prop?
+  def changed?(old_status, prop)
+    (old_status == nil && self[prop] > 0) ||
+      (old_status != nil && self[prop] != old_status[prop])
   end
 end
 
+# interaction with signaly.cz
 class SignalyChecker
-  # interaction with signaly.cz
 
-  def initialize(username, password, dbg_print=false)
-    @username = username
-    @password = password
+  def initialize(config)
+    @username = config.login
+    @password = config.password
 
     @agent = Mechanize.new
 
-    @dbg_print_pages = dbg_print # print raw html of all request results?
+    @dbg_print_pages = config.debug_output || false # print raw html of all request results?
 
-    login
+    @checked_page = config.url || 'https://www.signaly.cz/'
   end
 
   USERMENU_XPATH = ".//div[contains(@class, 'section-usermenu')]"
@@ -100,7 +81,7 @@ class SignalyChecker
   # takes user name and password; returns a page (logged-in) or throws
   # exception
   def login
-    page = @agent.get('https://www.signaly.cz/')
+    page = @agent.get(@checked_page)
     debug_page_print "front page", page
 
     login_form = page.form_with(:id => 'frm-loginForm')
@@ -130,9 +111,9 @@ class SignalyChecker
 
   def user_status
     status = SignalyStatus.new
-    page = @agent.get('https://www.signaly.cz/')
+    page = @agent.get(@checked_page)
     debug_page_print "user main page", page
-    
+
     menu = page.search(USERMENU_XPATH)
 
     pm = menu.search(".//a[@href='/vzkazy']")
@@ -154,13 +135,24 @@ class SignalyChecker
   def debug_page_print(title, page)
     return if ! @dbg_print_pages
 
-    STDERR.puts 
-    STDERR.puts(("# "+title).colorize(:yellow))
+    STDERR.puts
+    STDERR.puts ("# "+title).colorize(:yellow)
     STDERR.puts
     STDERR.puts page.search(".//div[@class='navbar navbar-fixed-top section-header']")
     STDERR.puts
-    STDERR.puts("-" * 60)
+    STDERR.puts "-" * 60
     STDERR.puts
+  end
+
+  # finds the first integer in the string and returns it
+  def find_num(str, default=0)
+    m = str.match /\d+/
+
+    unless m
+      return default
+    end
+
+    return m[0].to_i
   end
 end
 
@@ -187,23 +179,14 @@ class ConsoleOutputter < SignalyStatusOutputter
     puts # start on a new line
     print t.strftime("%H:%M:%S")
 
-    ms = new_status[:pm].to_s
-    if new_status.changed?(old_status, :pm) then
-      ms = ms.colorize(:red)
+    [:pm, :notifications, :invitations].each do |what|
+      num = new_status[what].to_s
+      if new_status.changed?(old_status, what) then
+        num = num.colorize(:red)
+      end
+      print "  #{what}: #{num}"
     end
-    print "  messages: "+ms
-
-    ns = new_status[:notifications].to_s
-    if new_status.changed?(old_status, :notifications) then
-      ns = ns.colorize(:red) 
-    end
-    print "  notifications: "+ns
-
-    is = new_status[:invitations].to_s
-    if new_status.changed?(old_status, :invitations) then
-      is = is.colorize(:red)
-    end
-    puts "  invitations: "+is
+    puts
   end
 
   # doesn't work....
@@ -221,10 +204,9 @@ class LibNotifyOutputter < SignalyStatusOutputter
   private
 
   def send_notification(status)
-    ms = status[:pm].to_s
-    ns = status[:notifications].to_s
-    is = status[:invitations].to_s
-    text = "pm: #{ms}\nnotifications: #{ns}\ninvitations: #{is}"
+    text = [:pm, :notifications, :invitations].collect do |what|
+      "#{what}: #{status[what]}"
+    end.join "\n"
 
     Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => @config.notification_showtime)
   end
@@ -233,14 +215,27 @@ end
 
 ############################################# main
 
-# find default config
+# set config defaults:
+defaults = SNConfig.new
+# how many seconds between two checks of the site
+defaults.sleep_seconds = 60
+# if there is some pending content and I don't look at it,
+# remind me after X seconds
+defaults.remind_after = 60*5
+# for how long time the notification shows up
+defaults.notification_showtime = 10
+defaults.debug_output = false
+defaults.password = nil
+
+# find default config file
 config_file = nil
-default_config_path = "#{ENV['HOME']}/.config/signaly-notify/config.yaml"
+default_config_path = File.join ENV['HOME'], ".config/signaly-notify/config.yaml"
 if default_config_path then
   config_file = default_config_path
 end
 
 # process options
+config = SNConfig.new
 optparse = OptionParser.new do |opts|
   opts.on "-u", "--user NAME", "user name used to log in" do |n|
     config.login = n
@@ -249,7 +244,7 @@ optparse = OptionParser.new do |opts|
   opts.on "-p", "--password WORD", "user's password" do |p|
     config.password = p
   end
-  
+
   opts.separator "If you don't provide any of the options above, "\
   "the program will ask you to type the name and/or password on its start. "\
   "(And especially "\
@@ -268,6 +263,14 @@ optparse = OptionParser.new do |opts|
     config.debug_output = true
   end
 
+  opts.on "--url URL", "check URL different from the default (for developmeng)" do |s|
+    config.url = s
+  end
+
+  opts.on "--skip-login", "don't login (for development)" do
+    config.skip_login = true
+  end
+
   opts.on "-h", "--help", "print this help" do
     puts opts
     exit 0
@@ -279,28 +282,27 @@ optparse = OptionParser.new do |opts|
 end
 optparse.parse!
 
+# apply configuration
+config_layers = []
+config_layers << defaults
 if config_file then
   config_layers << YAML.load(File.open(config_file))
 end
+config_layers << config
 
 config = merge_structs(*config_layers)
 
-unless ARGV.empty? 
+unless ARGV.empty?
   puts "Warning: unused commandline arguments: "+ARGV.join(', ')
 end
 
 # ask the user for missing essential information
 cliio = HighLine.new
+config.login ||= cliio.ask("login: ")
+config.password ||= cliio.ask("password: ") {|q| q.echo = '*' }
 
-if !config.login then
-  config.login = cliio.ask("login: ")
-end
-
-if !config.password then
-  config.password = cliio.ask("password: ") {|q| q.echo = '*' }
-end
-
-checker = SignalyChecker.new config.login, config.password, config.debug_output
+checker = SignalyChecker.new config
+checker.login unless config.skip_login
 
 old_status = status = nil
 last_reminder = 0
@@ -315,7 +317,7 @@ loop do
     status = checker.user_status
   rescue Exception, SocketError => e
     Libnotify.show(:body => "#{e.class}: #{e.message}",
-                   :summary => "signaly.cz: ERROR", 
+                   :summary => "signaly.cz: ERROR",
                    :timeout => 20)
     sleep config.sleep_seconds
     retry
@@ -326,9 +328,7 @@ loop do
 
   # send a notification only if there is something interesting:
 
-  if old_status == nil ||
-      (status[:pm] > old_status[:pm] || 
-       status[:notifications] > old_status[:notifications]) then
+  if old_status == nil || status > old_status then
     # something new
     lno.output status, old_status
     last_reminder = Time.now.to_i
