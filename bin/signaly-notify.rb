@@ -14,23 +14,19 @@ SNConfig = Struct.new(:sleep_seconds, # between checks
                       :login,
                       :password,
                       :url, # of the checked page
-                      :skip_login)
+                      :skip_login,
+                      :config_file)
 
-# merges the config structs so that the last one
-# in the argument list has the highest priority and value nil is considered
-# empty
-def merge_structs(*structs)
-  merged = structs.first.dup
-
-  merged.each_pair do |key, value|
-    k = key.to_s # a sym normally; but we also want to merge a normal Hash received from Yaml
-    structs.each do |s|
-      if s[k] != nil then
-        merged[k] = s[k]
-      end
-    end
-  end
-end
+defaults = SNConfig.new
+# how many seconds between two checks of the site
+defaults.sleep_seconds = 60
+# if there is some pending content and I don't look at it,
+# remind me after X seconds
+defaults.remind_after = 60*5
+# for how long time the notification shows up
+defaults.notification_showtime = 10
+defaults.debug_output = false
+defaults.password = nil
 
 # how many PMs, notifications, invitations a user has at a time
 class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
@@ -212,134 +208,171 @@ class LibNotifyOutputter < SignalyStatusOutputter
   end
 end
 
+class SignalyNotifyApp
 
-############################################# main
+  DEFAULT_CONFIG_PATH = ".config/signaly-notify/config.yaml"
 
-# set config defaults:
-defaults = SNConfig.new
-# how many seconds between two checks of the site
-defaults.sleep_seconds = 60
-# if there is some pending content and I don't look at it,
-# remind me after X seconds
-defaults.remind_after = 60*5
-# for how long time the notification shows up
-defaults.notification_showtime = 10
-defaults.debug_output = false
-defaults.password = nil
+  attr_accessor :default_config
 
-# find default config file
-config_file = nil
-default_config_path = File.join ENV['HOME'], ".config/signaly-notify/config.yaml"
-if default_config_path then
-  config_file = default_config_path
+  def call(argv)
+    options = process_options(argv)
+    config = merge_structs(
+      @default_config,
+      config_file(options.config_file),
+      options
+    )
+    ask_config(config)
+
+    check_loop(config)
+  end
+
+  private
+
+  # load configuration from config file
+  def config_file(path=nil)
+    path ||= File.join ENV['HOME'], DEFAULT_CONFIG_PATH
+
+    if File.exist? path then
+      cfg = YAML.load(File.open(path))
+      # symbolize keys
+      cfg = cfg.inject({}){|memo,(k,v)| memo[k.to_sym] = v; memo}
+      return cfg
+    end
+
+    return nil
+  end
+
+  def process_options(argv)
+    config = SNConfig.new
+    optparse = OptionParser.new do |opts|
+      opts.on "-u", "--user NAME", "user name used to log in" do |n|
+        config.login = n
+      end
+
+      opts.on "-p", "--password WORD", "user's password" do |p|
+        config.password = p
+      end
+
+      opts.separator "If you don't provide any of the options above, "\
+                     "the program will ask you to type the name and/or password on its start. "\
+                     "(And especially "\
+                     "for the password it's probably a bit safer to type it this way than "\
+                     "to type it on the commandline.)\n\n"
+
+      opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{config.sleep_seconds})" do |s|
+        config.sleep_seconds = s
+      end
+
+      opts.on "-r", "--remind SECS", Integer, "if I don't bother about the contents I recieved a notification about, remind me after X seconds (default is #{config.remind_after}; set to 0 to disable)" do |s|
+        config.remind_after = s
+      end
+
+      opts.on "-d", "--debug", "print debugging information to STDERR" do
+        config.debug_output = true
+      end
+
+      opts.on "--url URL", "check URL different from the default (for developmeng)" do |s|
+        config.url = s
+      end
+
+      opts.on "--skip-login", "don't login (for development)" do
+        config.skip_login = true
+      end
+
+      opts.on "-h", "--help", "print this help" do
+        puts opts
+        exit 0
+      end
+
+      opts.on "-c", "--config FILE", "configuration file" do |f|
+        config.config_file = f
+      end
+    end
+    optparse.parse! argv
+
+
+    unless argv.empty?
+      STDERR.puts "Warning: unused commandline arguments: "+ARGV.join(', ')
+    end
+
+    return config
+  end
+
+  # ask the user for missing essential information
+  def ask_config(config)
+    cliio = HighLine.new
+    config.login ||= cliio.ask("login: ")
+    config.password ||= cliio.ask("password: ") {|q| q.echo = '*' }
+  end
+
+  # merges the config structs so that the last one
+  # in the argument list has the highest priority and value nil is considered
+  # empty
+  def merge_structs(*structs)
+    merged = structs.shift.dup
+
+    merged.each_pair do |key, value|
+      structs.each do |s|
+        next if s.nil?
+        if s[key] != nil then
+          merged[key] = s[key]
+        end
+      end
+    end
+
+    return merged
+  end
+
+  def check_loop(config)
+    checker = SignalyChecker.new config
+    checker.login unless config.skip_login
+
+    old_status = status = nil
+    last_reminder = 0
+
+    co = ConsoleOutputter.new config
+    lno = LibNotifyOutputter.new config
+
+    loop do
+      old_status = status
+
+      begin
+        status = checker.user_status
+      rescue Exception, SocketError => e
+        Libnotify.show(:body => "#{e.class}: #{e.message}",
+                       :summary => "signaly.cz: ERROR",
+                       :timeout => 20)
+        sleep config.sleep_seconds
+        retry
+      end
+
+      # print each update to the console:
+      co.output status, old_status
+
+      # send a notification only if there is something interesting:
+
+      if old_status == nil || status > old_status then
+        # something new
+        lno.output status, old_status
+        last_reminder = Time.now.to_i
+
+      elsif config.remind_after != 0 &&
+            Time.now.to_i >= last_reminder + config.remind_after &&
+                                             status.is_there_anything? then
+        # nothing new, but pending content should be reminded
+        lno.output status, old_status
+        last_reminder = Time.now.to_i
+      end
+
+      sleep config.sleep_seconds
+    end
+  end
 end
 
-# process options
-config = SNConfig.new
-optparse = OptionParser.new do |opts|
-  opts.on "-u", "--user NAME", "user name used to log in" do |n|
-    config.login = n
-  end
 
-  opts.on "-p", "--password WORD", "user's password" do |p|
-    config.password = p
-  end
 
-  opts.separator "If you don't provide any of the options above, "\
-  "the program will ask you to type the name and/or password on its start. "\
-  "(And especially "\
-  "for the password it's probably a bit safer to type it this way than "\
-  "to type it on the commandline.)\n\n"
-
-  opts.on "-s", "--sleep SECS", Integer, "how many seconds to sleep between two checks (default is #{config.sleep_seconds})" do |s|
-    config.sleep_seconds = s
-  end
-
-  opts.on "-r", "--remind SECS", Integer, "if I don't bother about the contents I recieved a notification about, remind me after X seconds (default is #{config.remind_after}; set to 0 to disable)" do |s|
-    config.remind_after = s
-  end
-
-  opts.on "-d", "--debug", "print debugging information to STDERR" do
-    config.debug_output = true
-  end
-
-  opts.on "--url URL", "check URL different from the default (for developmeng)" do |s|
-    config.url = s
-  end
-
-  opts.on "--skip-login", "don't login (for development)" do
-    config.skip_login = true
-  end
-
-  opts.on "-h", "--help", "print this help" do
-    puts opts
-    exit 0
-  end
-
-  opts.on "-c", "--config FILE", "configuration file" do |f|
-    config_file = f
-  end
-end
-optparse.parse!
-
-# apply configuration
-config_layers = []
-config_layers << defaults
-if config_file then
-  config_layers << YAML.load(File.open(config_file))
-end
-config_layers << config
-
-config = merge_structs(*config_layers)
-
-unless ARGV.empty?
-  puts "Warning: unused commandline arguments: "+ARGV.join(', ')
-end
-
-# ask the user for missing essential information
-cliio = HighLine.new
-config.login ||= cliio.ask("login: ")
-config.password ||= cliio.ask("password: ") {|q| q.echo = '*' }
-
-checker = SignalyChecker.new config
-checker.login unless config.skip_login
-
-old_status = status = nil
-last_reminder = 0
-
-co = ConsoleOutputter.new config
-lno = LibNotifyOutputter.new config
-
-loop do
-  old_status = status
-
-  begin
-    status = checker.user_status
-  rescue Exception, SocketError => e
-    Libnotify.show(:body => "#{e.class}: #{e.message}",
-                   :summary => "signaly.cz: ERROR",
-                   :timeout => 20)
-    sleep config.sleep_seconds
-    retry
-  end
-
-  # print each update to the console:
-  co.output status, old_status
-
-  # send a notification only if there is something interesting:
-
-  if old_status == nil || status > old_status then
-    # something new
-    lno.output status, old_status
-    last_reminder = Time.now.to_i
-
-  elsif config.remind_after != 0 &&
-      Time.now.to_i >= last_reminder + config.remind_after &&
-      status.is_there_anything? then
-    # nothing new, but pending content should be reminded
-    lno.output status, old_status
-    last_reminder = Time.now.to_i
-  end
-
-  sleep config.sleep_seconds
+if $0 == __FILE__ then
+  app = SignalyNotifyApp.new
+  app.default_config = defaults
+  app.call ARGV
 end
