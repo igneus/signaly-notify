@@ -3,13 +3,19 @@
 require 'mechanize' # interaction with websites
 require 'colorize' # colorful console output
 require 'highline' # automating some tasks of the cli user interaction
-begin
-  require 'libnotify' # visual notification
-rescue LoadError
-  # no desktop notifications will be displayed
-end
 require 'optparse'
 require 'yaml'
+
+# optional gems for visual notifications
+begin
+  require 'libnotify'
+rescue LoadError
+end
+
+begin
+  require 'ruby-growl'
+rescue LoadError
+end
 
 SNConfig = Struct.new(:sleep_seconds, # between checks
                       :remind_after, # the first notification
@@ -19,7 +25,9 @@ SNConfig = Struct.new(:sleep_seconds, # between checks
                       :password,
                       :url, # of the checked page
                       :skip_login,
-                      :config_file)
+                      :config_file,
+                      :console_only,
+                      :notify)
 
 defaults = SNConfig.new
 # how many seconds between two checks of the site
@@ -31,6 +39,12 @@ defaults.remind_after = 60*5
 defaults.notification_showtime = 10
 defaults.debug_output = false
 defaults.password = nil
+# use first available visual notification engine
+if defined? Libnotify
+  defaults.notify = :libnotify
+elsif defined? Growl
+  defaults.notify = :growl
+end
 
 # how many PMs, notifications, invitations a user has at a time
 class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
@@ -46,6 +60,10 @@ class SignalyStatus < Struct.new(:pm, :notifications, :invitations)
 
   # does self have anything new compared with other?
   def >(other)
+    if other.nil?
+      return true
+    end
+
     [:pm, :notifications, :invitations].each do |prop|
       if send(prop) > other.send(prop) then
         return true
@@ -166,7 +184,9 @@ class Notifier
   end
 
   def emit(event, *args)
-    @outputters[event].each {|o| o.output *args }
+    if @outputters[event]
+      @outputters[event].each {|o| o.output *args }
+    end
     self
   end
 end
@@ -218,6 +238,17 @@ class LibNotifyOutputter < SignalyStatusOutputter
     end.join "\n"
 
     Libnotify.show(:body => text, :summary => "signaly.cz", :timeout => @config.notification_showtime)
+  end
+end
+
+class GrowlOutputter < SignalyStatusOutputter
+  def output(new_status, old_status)
+    text = [:pm, :notifications, :invitations].collect do |what|
+      "#{what}: #{new_status[what]}"
+    end.join "\n"
+
+    notif = Growl.new 'localhost', 'ruby-growl', 'GNTP'
+    notif.notify('signaly.cz', 'signaly.cz', text)
   end
 end
 
@@ -283,6 +314,14 @@ class SignalyNotifyApp
         config.remind_after = s
       end
 
+      opts.on "--notify NOTIFIER", "choose visual notification engine (possible values are 'libnotify' and 'growl')" do |s|
+        config.notify = s.to_sym
+      end
+
+      opts.on "--console-only", "don't display any visual notifications" do
+        config.console_only = true
+      end
+
       opts.on "-d", "--debug", "print debugging information to STDERR" do
         config.debug_output = true
       end
@@ -342,8 +381,14 @@ class SignalyNotifyApp
   def prepare_outputters(config, notifier)
     notifier.add_outputter ConsoleOutputter.new(config), :checked
 
-    if defined? Libnotify
+    return if config.console_only
+    return unless config.notify
+
+    case config.notify.to_sym
+    when :libnotify
       notifier.add_outputter LibNotifyOutputter.new(config), :changed, :remind
+    when :growl
+      notifier.add_outputter GrowlOutputter.new(config), :changed, :remind
     end
   end
 
@@ -360,19 +405,14 @@ class SignalyNotifyApp
       begin
         status = checker.user_status
       rescue Exception, SocketError => e
-        Libnotify.show(:body => "#{e.class}: #{e.message}",
-                       :summary => "signaly.cz: ERROR",
-                       :timeout => 20)
+        STDERR.puts "#{e.class}: #{e.message}"
         sleep config.sleep_seconds
         retry
       end
 
-      # print each update to the console:
       notifier.emit :checked, status, old_status
 
-      # send a notification only if there is something interesting:
-
-      if old_status == nil || status > old_status then
+      if status > old_status then
         # something new
         notifier.emit :changed, status, old_status
         last_reminder = Time.now.to_i

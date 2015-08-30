@@ -22,4 +22,5 @@ Currently it only detects pending private messages and notifications."
   s.add_runtime_dependency 'colorize'
   s.add_runtime_dependency 'highline'
   s.add_optional_dependency 'libnotify'
+  s.add_optional_dependency 'ruby-growl'
 end

@@ -19,6 +19,14 @@ using libnotify - when something new happens.
 
 * ruby >= 1.9
 * libnotify (volitelné / optional) `gem install libnotify`
+* growl (volitelné / optional) `gem install ruby-growl`
+
+[CZ] libnotify nebo growl je potřeba pro zobrazování upozornění
+na ploše. Jinak program pouze vypisuje do konzole.
+
+[EN] Either libnotify or growl is necessary in order to have visual
+notifications displayed. Without them the program will only write
+to the console.
 
 ## Instalace / Installation
 
