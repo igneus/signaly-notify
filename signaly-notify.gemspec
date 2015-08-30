@@ -18,7 +18,7 @@ Currently it only detects pending private messages and notifications."
     'http://github.com/igneus/signaly-notify'
   s.licenses    = ['LGPL-3.0', 'MIT']
 
-  s.add_runtime_dependency 'mechanize'
-  s.add_runtime_dependency 'colorize'
-  s.add_runtime_dependency 'highline'
+  s.add_runtime_dependency 'mechanize', '~> 2.7'
+  s.add_runtime_dependency 'colorize', '~> 0.7'
+  s.add_runtime_dependency 'highline', '~> 1.7'
 end
