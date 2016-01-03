@@ -13,7 +13,7 @@ module Signaly
                       :console_only,
                       :notify)
 
-    DEFAULT_CONFIG_PATH = ".config/signaly-notify/config.yaml"
+    DEFAULT_CONFIG_PATH = "#{ENV['HOME']}/.config/signaly-notify/config.yaml"
 
     def call(argv)
       options = process_options(argv)
@@ -34,7 +34,7 @@ module Signaly
 
     # load configuration from config file
     def config_file(path=nil)
-      path ||= File.join ENV['HOME'], DEFAULT_CONFIG_PATH
+      path ||= DEFAULT_CONFIG_PATH
 
       if File.exist? path then
         cfg = YAML.load(File.open(path))
