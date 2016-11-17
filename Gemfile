@@ -1,8 +1,8 @@
 source 'https://rubygems.org'
 
-gem 'mechanize'
+gem 'autoloaded'
 gem 'colorize'
 gem 'highline'
 gem 'libnotify'
+gem 'mechanize'
 gem 'ruby-growl'
-gem 'autoloaded'
