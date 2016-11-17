@@ -45,7 +45,7 @@ module Signaly
           config.remind_after = s
         end
 
-        opts.on "--notify NOTIFIER", "choose visual notification engine (possible values are 'libnotify' and 'growl')" do |s|
+        opts.on "--notify NOTIFIER", "choose visual notification engine (possible values: libnotify|growl|notifysend)" do |s|
           config.notify = s.to_sym
         end
 

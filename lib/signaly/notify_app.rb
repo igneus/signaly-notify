@@ -20,6 +20,8 @@ module Signaly
         notifier.add_outputter Signaly::LibnotifyOutputter.new(config), :changed, :remind
       when :growl
         notifier.add_outputter Signaly::GrowlOutputter.new(config), :changed, :remind
+      when :notifysend
+        notifier.add_outputter Signaly::NotifySendOutputter.new(config), :changed, :remind
       end
     end
 
