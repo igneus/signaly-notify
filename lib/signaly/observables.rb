@@ -26,9 +26,8 @@ module Signaly
     end
 
     def new_updates
-      # fake
       @state_changes ||=
-        all_states
+        all_states.select {|a| a[1] > a[0] }
     end
 
     def reminders
