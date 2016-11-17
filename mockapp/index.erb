@@ -1,0 +1,22 @@
+<!doctype html>
+
+<html>
+  <head>
+    <title>Mock signaly.cz</title>
+  </head>
+  <body>
+    <h1>Mock signaly.cz</h1>
+    <p>
+      Change the notification count values in <code>values.yml</code>.
+      Run signaly-notify with options <code>--url <%= uri %> --skip-login</code>
+    </p>
+
+    <hr>
+
+    <div class="section-usermenu">
+      <p>notifications <a href="/ohlasky"><%= notifications %></a></p>
+      <p>private messages <a href="/vzkazy"><%= pms %></a></p>
+      <p>invitations <a href="/vyzvy"><%= invitations %></a></p>
+    </div>
+  </body>
+</html>
