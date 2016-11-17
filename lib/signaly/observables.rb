@@ -17,7 +17,6 @@ module Signaly
             Rx::Observable
             .interval(@config.sleep_seconds)
             .time_interval
-            .start_with(0) # don't wait for the first entry
             .map { @client.user_status }
 
           Rx::Observable

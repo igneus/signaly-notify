@@ -3,7 +3,6 @@ require 'colorize'
 module Signaly
   class ConsoleOutputter < StatusOutputter
     def output(new_status, old_status)
-      p [new_status, old_status]
       print_line new_status, old_status
       set_console_title new_status
     end
