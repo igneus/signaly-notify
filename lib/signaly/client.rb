@@ -2,17 +2,16 @@ require 'mechanize'
 
 module Signaly
   # interaction with signaly.cz
+  # (through the regular web interface intended for humans)
   class Client
 
     def initialize(config)
-      @username = config.login
-      @password = config.password
-
+      @config = config
       @agent = Mechanize.new
 
       @dbg_print_pages = config.debug_output || false # print raw html of all request results?
 
-      @checked_page = config.url || 'https://www.signaly.cz/'
+      @checked_page = @config.url || 'https://www.signaly.cz/'
     end
 
     USERMENU_XPATH = ".//div[contains(@class, 'section-usermenu')]"
@@ -27,8 +26,8 @@ module Signaly
       unless login_form
         raise "Login form not found on the index page!"
       end
-      login_form['name'] = @username
-      login_form['password'] = @password
+      login_form['name'] = @config.login
+      login_form['password'] = @config.password
 
       page = @agent.submit(login_form)
       debug_page_print "first logged in", page
