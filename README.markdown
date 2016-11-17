@@ -42,12 +42,12 @@ to the console.
 
 [CZ] Kromě přepínačů na příkazové řádce je možné časté volby uložit
 do konfiguračního souboru.
-Ten se standardně hledá v ~/.config/signaly-notify/config.yaml
+Ten se standardně hledá v `~/.config/signaly-notify/config.yaml`
 Jinou cestu lze zvolit při spouštění přepínačem `-c`
 Níže nabízím jako příklad svůj konfigurační soubor.
 
 [EN] Common options can be saved to a config file.
-Default location is ~/.config/signaly-notify/config.yaml
+Default location is `~/.config/signaly-notify/config.yaml`
 and can be changed by command-line option `-c`.
 My own config is listed below.
 
