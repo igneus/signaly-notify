@@ -7,6 +7,7 @@ end
 module Signaly
   class LibnotifyOutputter < StatusOutputter
     def output(new_status, old_status)
+      p [new_status, old_status]
       text = [:pm, :notifications, :invitations].collect do |what|
         "#{what}: #{new_status[what]}"
       end.join "\n"

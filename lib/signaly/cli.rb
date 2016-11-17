@@ -13,7 +13,7 @@ module Signaly
                .merge(config_file(options.config_file))
                .merge(options)
       config = config.merge(find_available_notifier) if config.notify.nil?
-      request_config config
+      request_config config unless config.skip_login
 
       Signaly::NotifyApp.new.call config
     end

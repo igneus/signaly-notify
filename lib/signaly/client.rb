@@ -68,6 +68,10 @@ module Signaly
       return status
     end
 
+    def null_status
+      Status.new 0, 0, 0
+    end
+
     private
 
     def debug_page_print(title, page)
