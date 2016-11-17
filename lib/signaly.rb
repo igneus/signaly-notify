@@ -1,25 +1,8 @@
-require 'mechanize'
-require 'colorize'
-require 'highline'
-require 'optparse'
-require 'yaml'
+require 'autoloaded'
 
-# optional gems for visual notifications
-begin
-  require 'libnotify'
-rescue LoadError
+module Signaly
+  Autoloaded.module do |autoloading|
+    # hints for loading of non-conventional constants
+    autoloading.with :CLI
+  end
 end
-
-begin
-  require 'ruby-growl'
-rescue LoadError
-end
-
-
-%w(
-client
-notifier
-notify_app
-status_outputter
-status
-).each {|l| require_relative "signaly/#{l}" }

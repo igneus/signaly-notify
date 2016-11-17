@@ -1,3 +1,5 @@
+require 'mechanize'
+
 module Signaly
   # interaction with signaly.cz
   class Client
