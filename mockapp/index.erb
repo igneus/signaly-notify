@@ -14,9 +14,36 @@
     <hr>
 
     <div class="section-usermenu">
-      <p>notifications <a href="/ohlasky"><%= notifications %></a></p>
-      <p>private messages <a href="/vzkazy"><%= pms %></a></p>
-      <p>invitations <a href="/vyzvy"><%= invitations %></a></p>
+      <p>
+        notifications
+        <a href="/ohlasky">
+          <div class="badge-parent">
+            <% if notifications > 0 %>
+            <span class="badge"><%= notifications %></span>
+            <% end %>
+          </div>
+        </a>
+      </p>
+      <p>
+        private messages
+        <a href="/vzkazy">
+          <div class="badge-parent">
+            <% if pms > 0 %>
+            <span class="badge"><%= pms %></span>
+            <% end %>
+          </div>
+        </a>
+      </p>
+      <p>
+        invitations
+        <% if invitations > 0 %>
+        <a href="/vyzvy">
+          <div class="badge-parent">
+            <span class="badge"><%= invitations %></span>
+          </div>
+        </a>
+        <% end %>
+      </p>
     </div>
   </body>
 </html>
