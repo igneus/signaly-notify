@@ -10,3 +10,8 @@ gem 'ruby-growl'
 group :development do
   gem 'nyny'
 end
+
+group :test, :development do
+  gem 'dotenv'
+  gem 'rspec'
+end

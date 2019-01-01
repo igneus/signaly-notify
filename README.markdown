@@ -56,3 +56,20 @@ login: dromedar
 sleep_seconds: 300
 remind_after: 600
 ```
+
+## Jak pustit testy / Running tests
+
+```bash
+# install required ruby gems
+bundle install
+
+# set environment variables
+# - tests require access to valid signaly.cz credentials
+export TEST_LOGIN=your_login TEST_PASSWORD=your_password
+
+# execute tests
+bundle exec rspec
+```
+
+Alternatively, instead of setting environment variables
+in the shell, you can use a `.env` file.
