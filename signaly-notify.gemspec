@@ -4,12 +4,10 @@ Gem::Specification.new do |s|
   s.version     = '0.0.5'
   s.date        = '2015-12-26'
   s.summary     = "notification script for signaly.cz (Czech christian social network)"
-  s.description = "signaly-notify.rb is a simple script 
-logging in with your user data to the social network https://signaly.cz 
-and notifying you - by the means of printing to the console 
-as well as sending a visual notification using libnotify - 
-when something new happens.
-Currently it only detects pending private messages and notifications."
+  s.description = "signaly-notify.rb signs in with your credentials
+to the social network https://signaly.cz
+and triggers a desktop notification whenever something new happens.
+It detects pending private messages, notifications and invitations."
   s.authors     = ["Jakub Pavlík"]
   s.email       = 'jkb.pavlik@gmail.com'
   s.files       = Dir['bin/*.rb'] + Dir['lib/**/*.rb']
