@@ -1,4 +1,4 @@
-require 'colorize'
+require 'colorized_string'
 
 module Signaly
   class ConsoleOutputter < StatusOutputter
@@ -18,7 +18,7 @@ module Signaly
       [:pm, :notifications, :invitations].each do |what|
         num = new_status[what].to_s
         if new_status.changed?(old_status, what) then
-          num = num.colorize(:red)
+          num = ColorizedString.new(num).red
         end
         print "  #{what}: #{num}"
       end

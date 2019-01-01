@@ -68,7 +68,7 @@ module Signaly
       return if ! @dbg_print_pages
 
       STDERR.puts
-      STDERR.puts ("# "+title).colorize(:yellow)
+      STDERR.puts ColorizedString.new("# "+title).yellow
       STDERR.puts
       STDERR.puts page.search(".//div[@class='navbar navbar-fixed-top section-header']")
       STDERR.puts
