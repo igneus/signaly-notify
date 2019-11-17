@@ -14,8 +14,6 @@ module Signaly
       @checked_page = @config.url || 'https://www.signaly.cz/'
     end
 
-    USERMENU_XPATH = ".//div[contains(@class, 'section-usermenu')]"
-
     # takes user name and password; returns a page (logged-in) or throws
     # exception
     def login
@@ -32,9 +30,7 @@ module Signaly
       page = @agent.submit(login_form)
       debug_page_print "first logged in", page
 
-      usermenu = page.search(USERMENU_XPATH)
-      usermenu &&= usermenu.xpath("./div[@class='item username']")
-      if usermenu.empty? then
+      if page.search(".//div[@class='header__user__name']").empty?
         raise "User-menu not found. Login failed or signaly.cz UI changed again."
       end
 
@@ -46,17 +42,23 @@ module Signaly
       page = @agent.get(@checked_page)
       debug_page_print "user main page", page
 
-      menu = page.search(USERMENU_XPATH)
+      menu = page.search(".//header//div[@class='ml-auto d-flex align-items-center']")
 
-      pm = menu.search(".//a[@href='/vzkazy']")
+      pm = menu.search(".//a[contains(@class, 'header__messages')]/span")
       status[:pm] = find_num(pm.text)
 
-      notif = menu.search(".//a[@href='/ohlasky']")
+      notif = menu.search(".//a[contains(@class, 'header__zvonek')]/span")
       status[:notifications] = find_num(notif.text)
 
-      inv = menu.search(".//a[@href='/vyzvy']")
-      if inv then
-        status[:invitations] = find_num(inv.text)
+      inv = menu.search(".//a[contains(@class, 'header__users')]")
+      unless inv.empty?
+        inv_count = inv.search('./span')
+        status[:invitations] =
+          if inv_count.empty?
+            1
+          else
+            find_num(inv_count.text)
+          end
       end
 
       return status
@@ -70,7 +72,7 @@ module Signaly
       STDERR.puts
       STDERR.puts ColorizedString.new("# "+title).yellow
       STDERR.puts
-      STDERR.puts page.search(".//div[@class='navbar navbar-fixed-top section-header']")
+      STDERR.puts page.root.inner_html
       STDERR.puts
       STDERR.puts "-" * 60
       STDERR.puts
