@@ -42,12 +42,12 @@ module Signaly
       page = @agent.get(@checked_page)
       debug_page_print "user main page", page
 
-      menu = page.search(".//header//div[@class='ml-auto d-flex align-items-center']")
+      menu = page.search(".//header")
 
-      pm = menu.search(".//a[contains(@class, 'header__messages')]/span")
+      pm = menu.search(".//a[contains(@class, 'header__messages')][1]/span")
       status[:pm] = find_num(pm.text)
 
-      notif = menu.search(".//a[contains(@class, 'header__zvonek')]/span")
+      notif = menu.search(".//a[contains(@class, 'header__zvonek')][1]/span")
       status[:notifications] = find_num(notif.text)
 
       inv = menu.search(".//a[contains(@class, 'header__users')]")
