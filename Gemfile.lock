@@ -81,9 +81,9 @@ GEM
     ruby-growl (4.1)
       uuid (~> 2.3, >= 2.3.5)
     systemu (2.6.5)
-    thread_safe (0.3.5)
+    thread_safe (0.3.6)
     tilt (1.4.1)
-    tzinfo (1.2.2)
+    tzinfo (1.2.10)
       thread_safe (~> 0.1)
     unf (0.1.4)
       unf_ext
